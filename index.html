@@ -31,14 +31,14 @@
           <input id="titleInput" maxlength="180" placeholder="Program title">
           <label for="contentInput">Program prompt / sequence</label>
           <textarea id="contentInput" rows="16" placeholder="Enter guide content…"></textarea>
-          <div class="row-between"><span id="saveState" class="message">No changes yet</span><button id="saveButton" class="primary">Save changes</button></div>
-          <p class="hint">This is a safe sync prototype. The existing guide editor and its formatting will be integrated in a later migration step.</p>
+          <div class="row-between"><span id="saveState" class="message">No changes yet</span><button id="saveButton" class="primary">Save Guide</button></div>
+          <p class="hint">Edits auto-save after a short pause. Save Guide also saves immediately. The live display updates through Firestore without requiring a manual refresh.</p>
         </section>
         <section class="panel display-panel">
           <div class="row-between"><h2>Live display</h2><span class="pill">Real-time</span></div>
           <h3 id="displayTitle">No guide selected</h3>
           <pre id="displayContent">Sign in with an authorized account to load the live guide.</pre>
-          <p class="hint">Updates arrive through Firestore snapshots; no manual refresh is required.</p>
+          <p class="hint">Updates arrive through Firestore snapshots while you type; auto-save runs after a short pause.</p>
         </section>
       </div>
     </section>

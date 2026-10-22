@@ -8,7 +8,7 @@ This is a **separate migration copy/prototype**, not a replacement for the curre
 - Google Sign-In via Firebase Authentication.
 - Email allowlist check for the three approved Google accounts; role permissions are also enforced by Firestore rules. No manually created `authorizedUsers/{uid}` documents are needed for this preview.
 - Firestore Security Rules that deny access by default, limit access to the approved email addresses, and restrict guide deletion to the two admin accounts.
-- A minimal guide editor and display using a Firestore real-time listener (`onSnapshot`). Changes saved by an operator should appear automatically in all connected windows/devices using the same `?guide=GUIDE_ID`.
+- A minimal guide editor and display using a Firestore real-time listener (`onSnapshot`). Edits auto-save about 600 ms after typing pauses, and the live display updates automatically across connected windows/devices using the same `?guide=GUIDE_ID`. The **Save Guide** button also saves immediately.
 - Separate display-only route: `?mode=display&guide=GUIDE_ID`; Host-style route: `?mode=host&guide=GUIDE_ID`.
 
 ## Firebase setup
@@ -28,8 +28,8 @@ This is a **separate migration copy/prototype**, not a replacement for the curre
 
 1. Sign in with an allowlisted operator account in one browser.
 2. Open the same site in another window/device and sign in with an allowlisted account.
-3. Use the same guide ID in both URLs, for example `?guide=tech-rehearsal`.
-4. Edit and click **Save changes** in the operator window. The other window should update without refresh.
+3. Use the same guide ID in both URLs, for example `?guide=tech-rehearsal`. Keep the editor URL without `mode=display` or `mode=host`; use `?mode=display&guide=tech-rehearsal` for a display-only window.
+4. Type in the editor and pause briefly. The app should auto-save and the other window should update without refresh. **Save Guide** remains available for an immediate save.
 5. Confirm an unlisted account cannot read the guide and that a viewer cannot save changes.
 
 ## Free-tier notes

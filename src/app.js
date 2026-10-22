@@ -15,6 +15,10 @@ const ROLE_BY_EMAIL = {
 };
 let auth, db, currentUser, currentRole = '', stopGuideListener = null, latestGuide = null;
 let saveInFlight = false;
+let saveQueued = false;
+let autoSaveTimer = null;
+let lastSavedFingerprint = '';
+const AUTO_SAVE_DELAY_MS = 600;
 
 function message(text, tone='') {
   $('authMessage').textContent = text;
@@ -41,6 +45,10 @@ function renderGuide(data) {
   $('displayContent').textContent = data?.content || 'No guide content yet.';
   if (document.activeElement !== $('titleInput')) $('titleInput').value = data?.title || '';
   if (document.activeElement !== $('contentInput')) $('contentInput').value = data?.content || '';
+  if (document.activeElement !== $('titleInput') && document.activeElement !== $('contentInput') && !saveInFlight && !autoSaveTimer) {
+    lastSavedFingerprint = editorFingerprint();
+    $('saveState').textContent = 'Saved';
+  }
   message(`Live · guide ${guideId} · last update ${data?.updatedAt?.toDate ? data.updatedAt.toDate().toLocaleTimeString() : 'available'}`, 'good');
 }
 async function startGuideListener() {
@@ -50,7 +58,9 @@ async function startGuideListener() {
     if (snap.exists()) renderGuide(snap.data());
     else {
       latestGuide = null;
-      renderGuide({title:'New program guide',content:'This guide is not created yet. An authorized operator can enter content and save it.'});
+      renderGuide({title:'New program guide',content:''});
+      lastSavedFingerprint = '';
+      $('saveState').textContent = 'Not saved yet';
       message(`Connected · no saved guide exists yet (${guideId})`, 'good');
     }
   }, err => {
@@ -58,25 +68,50 @@ async function startGuideListener() {
     message('Live sync error. Check connection and Firestore permissions.', 'error');
   });
 }
-async function saveGuide() {
-  if (!currentUser || !['admin','operator'].includes(currentRole) || saveInFlight) return;
+function editorFingerprint() {
+  return JSON.stringify({ title: $('titleInput').value.trim().slice(0,180) || 'Untitled guide', content: $('contentInput').value });
+}
+function scheduleAutoSave() {
+  if (!currentUser || !['admin','operator'].includes(currentRole) || displayOnly) return;
+  $('saveState').textContent = 'Unsaved typing…';
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => saveGuide({ automatic: true }), AUTO_SAVE_DELAY_MS);
+}
+async function saveGuide({ automatic = false } = {}) {
+  if (!currentUser || !['admin','operator'].includes(currentRole) || displayOnly) return;
+  clearTimeout(autoSaveTimer);
+  const fingerprint = editorFingerprint();
+  if (fingerprint === lastSavedFingerprint) {
+    if (!automatic) $('saveState').textContent = 'Saved';
+    return;
+  }
+  if (saveInFlight) {
+    saveQueued = true;
+    if (!automatic) $('saveState').textContent = 'Waiting to save…';
+    return;
+  }
   saveInFlight = true;
   $('saveButton').disabled = true;
-  $('saveState').textContent = 'Saving…';
+  $('saveState').textContent = automatic ? 'Auto-saving…' : 'Saving guide…';
   try {
-    const title = $('titleInput').value.trim().slice(0,180) || 'Untitled guide';
-    const content = $('contentInput').value;
+    const { title, content } = JSON.parse(fingerprint);
     await setDoc(doc(db,'guides',guideId), {
       title, content, type: 'PROGRAM_FLOW', schemaVersion: 1,
       updatedAt: serverTimestamp(), updatedBy: currentUser.uid
     });
-    $('saveState').textContent = 'Saved';
+    lastSavedFingerprint = fingerprint;
+    $('saveState').textContent = 'Saved automatically';
   } catch (err) {
     console.error('Save failed:', err);
     $('saveState').textContent = 'Save failed — check permissions and connection.';
   } finally {
     saveInFlight = false;
     $('saveButton').disabled = false;
+    if (saveQueued || editorFingerprint() !== lastSavedFingerprint) {
+      saveQueued = false;
+      // If the user typed while a save was in flight, persist the newest version too.
+      autoSaveTimer = setTimeout(() => saveGuide({ automatic: true }), 150);
+    }
   }
 }
 
@@ -95,7 +130,9 @@ if (!configured) {
     finally { $('signInButton').disabled = false; }
   });
   $('signOutButton').addEventListener('click', () => signOut(auth));
-  $('saveButton').addEventListener('click', saveGuide);
+  $('saveButton').addEventListener('click', () => saveGuide({ automatic: false }));
+  $('titleInput').addEventListener('input', scheduleAutoSave);
+  $('contentInput').addEventListener('input', scheduleAutoSave);
   onAuthStateChanged(auth, async user => {
     currentUser = user;
     if (!user) {
