@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function authorized() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid)).data.active == true;
+    }
+    function editor() {
+      return authorized()
+        && get(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid)).data.role in ['admin', 'operator'];
+    }
+
+    match /authorizedUsers/{uid} {
+      // A signed-in user may read only their own allowlist entry. Client-side writes are never allowed.
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /guides/{guideId} {
+      allow read: if authorized();
+      allow create, update: if editor()
+        && request.resource.data.keys().hasOnly([
+          'title', 'content', 'type', 'updatedAt', 'updatedBy', 'schemaVersion'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 180
+        && request.resource.data.content is string
+        && request.resource.data.content.size() <= 500000;
+      allow delete: if authorized()
+        && get(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
