@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>SSG Program Guide Builder — Migration Preview</title>
+  <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><strong>SSG PROGRAM GUIDE BUILDER</strong><small>Firebase migration preview · project connected</small></div>
+    <div id="authStatus" class="status">Not signed in</div>
+  </header>
+  <main class="wrap">
+    <section id="signInCard" class="panel">
+      <h1>Sign in to SSG</h1>
+      <p>This migration preview uses Google Sign-In. Only accounts added to the Firebase authorized-user allowlist can access guide data.</p>
+      <button id="signInButton" class="primary">Continue with Google</button>
+      <p id="authMessage" class="message" role="status"></p>
+    </section>
+    <section id="appPanel" class="hidden">
+      <div class="panel row-between">
+        <div><h1 id="guideTitle">Live guide preview</h1><p id="syncStatus" class="message">Waiting for a guide…</p></div>
+        <button id="signOutButton" class="secondary">Sign out</button>
+      </div>
+      <div class="columns">
+        <section id="editorPanel" class="panel hidden">
+          <h2>Operator editor</h2>
+          <label for="titleInput">Guide title</label>
+          <input id="titleInput" maxlength="180" placeholder="Program title">
+          <label for="contentInput">Program prompt / sequence</label>
+          <textarea id="contentInput" rows="16" placeholder="Enter guide content…"></textarea>
+          <div class="row-between"><span id="saveState" class="message">No changes yet</span><button id="saveButton" class="primary">Save changes</button></div>
+          <p class="hint">This is a safe sync prototype. The existing guide editor and its formatting will be integrated in a later migration step.</p>
+        </section>
+        <section class="panel display-panel">
+          <div class="row-between"><h2>Live display</h2><span class="pill">Real-time</span></div>
+          <h3 id="displayTitle">No guide selected</h3>
+          <pre id="displayContent">Sign in with an authorized account to load the live guide.</pre>
+          <p class="hint">Updates arrive through Firestore snapshots; no manual refresh is required.</p>
+        </section>
+      </div>
+    </section>
+    <section class="panel note">
+      <strong>Firebase config added — security setup still required</strong>
+      <p>Before testing, publish the supplied <code>firestore.rules</code> in Firebase Console → Firestore Database → Rules, then add authorized user documents as described in the README. Do not publish the old universal access code or private backend files.</p>
+    </section>
+  </main>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
