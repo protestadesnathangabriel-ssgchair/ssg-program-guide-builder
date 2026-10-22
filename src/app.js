@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 import { firebaseConfig } from './firebase-config.js';
 
 const $ = id => document.getElementById(id);
@@ -8,6 +8,11 @@ const params = new URLSearchParams(location.search);
 const displayOnly = params.get('mode') === 'display' || params.get('mode') === 'host';
 const guideId = params.get('guide') || 'migration-demo';
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('REPLACE_') && firebaseConfig.projectId && !firebaseConfig.projectId.startsWith('REPLACE_');
+const ROLE_BY_EMAIL = {
+  'protestadesnathangabriel.ssggov@gmail.com': 'admin',
+  'protestadesnathangabriel.udmshs@gmail.com': 'admin',
+  'studentcouncil.caloocan@laverdad.edu.ph': 'operator'
+};
 let auth, db, currentUser, currentRole = '', stopGuideListener = null, latestGuide = null;
 let saveInFlight = false;
 
@@ -99,19 +104,19 @@ if (!configured) {
       return;
     }
     try {
-      const allowRef = doc(db, 'authorizedUsers', user.uid);
-      const allowSnap = await getDoc(allowRef);
-      if (!allowSnap.exists() || allowSnap.data().active !== true) {
+      const email = (user.email || '').trim().toLowerCase();
+      const role = ROLE_BY_EMAIL[email];
+      if (!user.emailVerified || !role) {
         await signOut(auth);
-        failAuth('This Google account is not on the authorized SSG allowlist. Ask an administrator to authorize it.');
+        failAuth('This Google account is not on the authorized SSG allowlist. Use one of the three approved accounts.');
         return;
       }
-      currentRole = allowSnap.data().role || 'viewer';
+      currentRole = role;
       showSignedInUI(user, currentRole);
       await startGuideListener();
     } catch (err) {
       console.error('Authorization check failed:', err);
-      failAuth('Could not verify account access. Check Firestore setup and Security Rules.');
+      failAuth('Could not verify account access. Check Firebase Authentication and Firestore Security Rules.');
     }
   });
 }

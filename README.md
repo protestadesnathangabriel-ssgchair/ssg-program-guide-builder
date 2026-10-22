@@ -6,25 +6,23 @@ This is a **separate migration copy/prototype**, not a replacement for the curre
 
 - Static GitHub Pages-compatible site structure.
 - Google Sign-In via Firebase Authentication.
-- Authorized-account allowlist check using `authorizedUsers/{uid}`.
-- Firestore Security Rules that deny access by default and separate viewer from operator/admin roles.
+- Email allowlist check for the three approved Google accounts; role permissions are also enforced by Firestore rules. No manually created `authorizedUsers/{uid}` documents are needed for this preview.
+- Firestore Security Rules that deny access by default, limit access to the approved email addresses, and restrict guide deletion to the two admin accounts.
 - A minimal guide editor and display using a Firestore real-time listener (`onSnapshot`). Changes saved by an operator should appear automatically in all connected windows/devices using the same `?guide=GUIDE_ID`.
 - Separate display-only route: `?mode=display&guide=GUIDE_ID`; Host-style route: `?mode=host&guide=GUIDE_ID`.
 
 ## Firebase setup
 
-1. Create a Firebase project and register a Web App.
-2. Enable **Authentication → Sign-in method → Google**.
-3. Create the **Cloud Firestore** database.
-4. The web app configuration for project `ssg-program-guide-builder` is already filled into `src/firebase-config.js`. If regenerating this scaffold, use the config from Firebase Console.
-5. Publish `firestore.rules` in Firebase Console → Firestore Database → Rules.
-6. In Authentication → Users, sign in once with each account that should be authorized. Copy each user's **UID**. You can create the initial admin record only after you have verified the correct UID for your own Google account.
-7. In Firestore → Data, create `authorizedUsers/{UID}` documents manually from the Firebase Console (the document ID must exactly match that user’s UID), with fields such as:
-   - `active`: `true` (boolean)
-   - `role`: `admin`, `operator`, or `viewer` (string)
-   - `email`: user's email (string, optional for reference)
-8. Deploy these static files to a **public GitHub repository** if using GitHub Free Pages. Do not include the old Apps Script backend, access codes, private documents, or protected content in a public repository.
-9. Serve through a local static server or GitHub Pages. ES modules may not work when opening `index.html` directly with `file://`.
+1. In Firebase Authentication → Sign-in method, enable Google.
+2. In Firebase Authentication → Settings → Authorized domains, add `protestadesnathangabriel-ssgchair.github.io`.
+3. The web app configuration for project `ssg-program-guide-builder` is already filled into `src/firebase-config.js`.
+4. In Firestore Database → Rules, replace the rules with the complete contents of the `firestore.rules` file in this ZIP, then click **Publish**.
+5. The app and rules allow these verified Google accounts:
+   - `protestadesnathangabriel.ssggov@gmail.com` — admin
+   - `protestadesnathangabriel.udmshs@gmail.com` — admin backup
+   - `studentcouncil.caloocan@laverdad.edu.ph` — operator
+6. No `authorizedUsers` documents need to be created for this preview. The app checks the signed-in email, and Firestore rules independently enforce the same allowlist. Do not add client-side writes to security/allowlist data.
+7. Upload the contents of this ZIP to the root of the public GitHub repository. Do not include the old Apps Script backend, access codes, private documents, or protected content in a public repository.
 
 ## Test live sync
 
@@ -44,7 +42,6 @@ The existing SSG application uses `google.script.run` and Apps Script services f
 
 ## Data model direction
 
-- `authorizedUsers/{uid}` — administrator-managed allowlist and role.
 - `guides/{guideId}` — guide title/content/type and update metadata. The current demo stores the guide body as a string; production migration should preserve structured prompt/sequence fields and rich formatting rather than flattening them.
 - Future `mediaIndex`, `lyrics`, and settings collections should be designed after auditing existing Apps Script functions and data formats.
 

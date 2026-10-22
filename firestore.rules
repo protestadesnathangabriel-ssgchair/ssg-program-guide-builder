@@ -2,38 +2,51 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
-      return request.auth != null;
-    }
-    function authorized() {
-      return signedIn()
-        && exists(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid))
-        && get(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid)).data.active == true;
-    }
-    function editor() {
-      return authorized()
-        && get(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid)).data.role in ['admin', 'operator'];
+      return request.auth != null
+        && request.auth.token.email_verified == true;
     }
 
-    match /authorizedUsers/{uid} {
-      // A signed-in user may read only their own allowlist entry. Client-side writes are never allowed.
-      allow read: if signedIn() && request.auth.uid == uid;
-      allow write: if false;
+    function isAllowedEmail() {
+      return signedIn() && request.auth.token.email in [
+        'protestadesnathangabriel.ssggov@gmail.com',
+        'protestadesnathangabriel.udmshs@gmail.com',
+        'studentcouncil.caloocan@laverdad.edu.ph'
+      ];
+    }
+
+    function isAdmin() {
+      return isAllowedEmail() && request.auth.token.email in [
+        'protestadesnathangabriel.ssggov@gmail.com',
+        'protestadesnathangabriel.udmshs@gmail.com'
+      ];
+    }
+
+    function canEdit() {
+      return isAllowedEmail();
     }
 
     match /guides/{guideId} {
-      allow read: if authorized();
-      allow create, update: if editor()
+      allow read: if isAllowedEmail();
+
+      allow create, update: if canEdit()
         && request.resource.data.keys().hasOnly([
+          'title', 'content', 'type', 'updatedAt', 'updatedBy', 'schemaVersion'
+        ])
+        && request.resource.data.keys().hasAll([
           'title', 'content', 'type', 'updatedAt', 'updatedBy', 'schemaVersion'
         ])
         && request.resource.data.title is string
         && request.resource.data.title.size() <= 180
         && request.resource.data.content is string
-        && request.resource.data.content.size() <= 500000;
-      allow delete: if authorized()
-        && get(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid)).data.role == 'admin';
+        && request.resource.data.content.size() <= 500000
+        && request.resource.data.type is string
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.schemaVersion is int;
+
+      allow delete: if isAdmin();
     }
 
+    // Deny access to all collections not explicitly listed above.
     match /{document=**} {
       allow read, write: if false;
     }
