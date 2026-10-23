@@ -1,0 +1,1 @@
+{"name":"ssg-program-guide-builder-core","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs","check":"node --check src/app.js && node --check src/guide-schema.js && node --check src/firebase-store.js"}}

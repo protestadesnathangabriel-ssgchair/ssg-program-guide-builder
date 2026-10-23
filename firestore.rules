@@ -1,54 +1,35 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null
-        && request.auth.token.email_verified == true;
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function email() { return signedIn() ? request.auth.token.email.lower() : ''; }
+    function isAdmin() { return email() in ['protestadesnathangabriel.ssggov@gmail.com', 'protestadesnathangabriel.udmshs@gmail.com']; }
+    function isOperator() { return email() == 'studentcouncil.caloocan@laverdad.edu.ph'; }
+    function allowed() { return isAdmin() || isOperator(); }
+    function validGuide() {
+      return request.resource.data.keys().hasAll(['id','title','type','schemaVersion','sections','hosts'])
+        && request.resource.data.title is string && request.resource.data.title.size() <= 180
+        && request.resource.data.type in ['PROGRAM_FLOW','PROGRAM_SEQUENCE']
+        && request.resource.data.sections is list && request.resource.data.sections.size() <= 150
+        && request.resource.data.hosts is list && request.resource.data.hosts.size() <= 30;
     }
-
-    function isAllowedEmail() {
-      return signedIn() && request.auth.token.email in [
-        'protestadesnathangabriel.ssggov@gmail.com',
-        'protestadesnathangabriel.udmshs@gmail.com',
-        'studentcouncil.caloocan@laverdad.edu.ph'
-      ];
-    }
-
-    function isAdmin() {
-      return isAllowedEmail() && request.auth.token.email in [
-        'protestadesnathangabriel.ssggov@gmail.com',
-        'protestadesnathangabriel.udmshs@gmail.com'
-      ];
-    }
-
-    function canEdit() {
-      return isAllowedEmail();
-    }
-
     match /guides/{guideId} {
-      allow read: if isAllowedEmail();
-
-      allow create, update: if canEdit()
-        && request.resource.data.keys().hasOnly([
-          'title', 'content', 'type', 'updatedAt', 'updatedBy', 'schemaVersion'
-        ])
-        && request.resource.data.keys().hasAll([
-          'title', 'content', 'type', 'updatedAt', 'updatedBy', 'schemaVersion'
-        ])
-        && request.resource.data.title is string
-        && request.resource.data.title.size() <= 180
-        && request.resource.data.content is string
-        && request.resource.data.content.size() <= 500000
-        && request.resource.data.type is string
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.schemaVersion is int;
-
+      allow read: if allowed();
+      allow create: if allowed() && validGuide() && request.resource.data.id == guideId && request.resource.data.updatedBy == request.auth.uid;
+      allow update: if allowed() && validGuide() && request.resource.data.id == guideId && request.resource.data.updatedBy == request.auth.uid;
       allow delete: if isAdmin();
     }
-
-    // Deny access to all collections not explicitly listed above.
-    match /{document=**} {
-      allow read, write: if false;
+    match /liveDrafts/{guideId} {
+      allow read: if allowed();
+      allow create, update: if allowed() && request.resource.data.id == guideId && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.title is string && request.resource.data.sections is list;
+      allow delete: if isAdmin();
     }
+    match /lyricLineups/{lineupId} {
+      allow read: if allowed();
+      allow create, update: if allowed() && request.resource.data.updatedBy == request.auth.uid;
+      allow delete: if isAdmin() || (isOperator() && resource.data.owner == email());
+    }
+    match /{document=**} { allow read, write: if false; }
   }
 }
